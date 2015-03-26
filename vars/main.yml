@@ -4,6 +4,10 @@ ruby_apt_dependencies:
   - libssl-dev
   - libyaml-dev
   - zlib1g-dev
+  - libncurses-dev
+  - libffi-dev
+  - libgdbm3
+
 
 ruby_yum_dependencies:
   - readline-devel
@@ -20,8 +24,9 @@ ruby_symlinks:
   - rdoc
   - ri
   - ruby
-  - testrb
+  #- testrb
 
 ruby_location: "/opt/{{ ruby_version }}"
+ruby_source_location: /usr/local/src
 
 ruby_executable: "{{ ruby_location }}/bin/ruby"

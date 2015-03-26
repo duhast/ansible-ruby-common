@@ -1,0 +1,10 @@
+---
+- name: Install yum prerequisite packages that are necessary to compile applications and gems with native extensions
+  yum: name="{{ item }}"
+  with_items:
+    - autoconf
+    - "@Developer tools"
+
+- name: Install yum Ruby dependencies
+  yum: name={{ item }}
+  with_items: ruby_yum_dependencies

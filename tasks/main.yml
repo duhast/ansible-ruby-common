@@ -1,52 +1,46 @@
 ---
-- name: Update APT cache
-  apt: update_cache=yes
+
+- include: setup-debian.yml
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- include: setup-redhat.yml
+  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' or ansible_distribution == 'Amazon'
 
 - name: Retrieve the number of cores that are available for compilation
   command: nproc
   register: cores
-
-- name: Install APT prerequisite packages that are necessary to compile applications and gems with native extensions
-  apt: pkg={{ item }}
-  with_items:
-    - autoconf
-    - build-essential
-  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
-
-- name: Install yum prerequisite packages that are necessary to compile applications and gems with native extensions
-  yum: name="{{ item }}"
-  with_items:
-    - autoconf
-    - "@Developer tools"
-  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' or ansible_distribution == 'Amazon'
-
-- name: Install APT Ruby dependencies
-  apt: pkg={{ item }}
-       state=present
-  with_items: ruby_apt_dependencies
-  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
-
-- name: Install yum Ruby dependencies
-  yum: name={{ item }}
-  with_items: ruby_yum_dependencies
-  when: ansible_distribution == 'CentOS' or ansible_distribution == 'Red Hat Enterprise Linux' or ansible_distribution == 'Amazon'
 
 - name: Download the Ruby source code
   get_url: url={{ ruby_download_location }}
            dest=/usr/local/src/
            sha256sum={{ ruby_checksum }}
 
-- name: Generate the Ruby installation script
-  template: src=install-ruby.j2
-            dest=/usr/local/src/install-ruby.sh
-            owner=root
-            group=root
-            mode=700
 
-- name: Run the Ruby installation script
-  command: /usr/local/src/install-ruby.sh
-           creates={{ ruby_location }}/bin/ruby
+- name: Extract Ruby source code
+  command: tar xvfz {{ ruby_source_location }}/{{ ruby_version }}.tar.gz
+  args:
+    chdir: "{{ ruby_source_location }}"
+    creates: "{{ ruby_source_location }}/{{ ruby_version }}"
+
+
+- name: Configure Ruby
+  command: ./configure --enable-shared --prefix={{ ruby_location }} --disable-install-doc
+  args:
+    chdir: "{{ ruby_source_location }}/{{ ruby_version }}"
+    creates: "{{ ruby_source_location }}/{{ ruby_version }}/Makefile"
+
+
+- name: Compile Ruby
+  command: make --jobs {{ cores.stdout }}
+  args:
+    chdir: "{{ ruby_source_location }}/{{ ruby_version }}"
+    creates: "{{ ruby_source_location }}/{{ ruby_version }}/ruby"
+
+- name: Install Ruby
+  command: make install
+  args:
+    chdir: "{{ ruby_source_location }}/{{ ruby_version }}"
+    creates: "{{ ruby_location }}/bin/ruby"
 
 - name: Generate the script that allows you to easily run Rake tasks with the correct RAILS_ENV environment variable, and the wrapper script that contains GC settings
   template: src={{ item }}.j2
@@ -61,6 +55,13 @@
 - name: Install Bundler
   command: "{{ ruby_location }}/bin/gem install bundler {{ ruby_bundler_flags }}
             creates={{ ruby_location }}/bin/bundle"
+
+
+- name: Delete old Ruby binaries/symlinks
+  file: path=/usr/local/bin/{{ item }} state=absent
+  with_items: ruby_symlinks
+  ignore_errors: yes
+
 
 - name: Make Ruby symlinks
   file: path=/usr/local/bin/{{ item }}

@@ -1,0 +1,14 @@
+---
+- name: Update APT cache
+  apt: update_cache=yes
+
+- name: Install APT prerequisite packages that are necessary to compile applications and gems with native extensions
+  apt: pkg={{ item }}
+  with_items:
+    - autoconf
+    - build-essential
+
+- name: Install APT Ruby dependencies
+  apt: pkg={{ item }}
+       state=present
+  with_items: ruby_apt_dependencies
