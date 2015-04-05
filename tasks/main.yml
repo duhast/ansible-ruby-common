@@ -56,15 +56,9 @@
   command: "{{ ruby_location }}/bin/gem install bundler {{ ruby_bundler_flags }}
             creates={{ ruby_location }}/bin/bundle"
 
-
-- name: Delete old Ruby binaries/symlinks
-  file: path=/usr/local/bin/{{ item }} state=absent
-  with_items: ruby_symlinks
-  ignore_errors: yes
-
-
 - name: Make Ruby symlinks
   file: path=/usr/local/bin/{{ item }}
         src={{ ruby_location }}/bin/{{ item }}
         state=link
+        force=true
   with_items: ruby_symlinks
